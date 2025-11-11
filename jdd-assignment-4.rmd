@@ -1,0 +1,190 @@
+---
+title: "Assignment 4.1 : Hands-On Exercises and Problem Statements in R"
+author: "Jenner Dulce"
+date: "11/10/2025"
+output: 
+  pdf_document: default
+---
+
+## Data Setup and Loading
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r load-libraries}
+library(ggplot2)
+library(scales)
+```
+
+```{r load-data}
+custdata <- read.table("./custdata.tsv", 
+                       header = TRUE, 
+                       sep = "\t", 
+                       stringsAsFactors = FALSE)
+```
+
+```{r explore-data}
+str(custdata)
+summary(custdata)
+```
+
+## Question 1: Income Distribution Analysis
+
+### 1.1: Figure out how to plot density of income. (10 points)
+
+Create a density plot to visualize the distribution of customer income.
+
+```{r question-1-1}
+ggplot(custdata, aes(x = income)) + 
+  geom_density(fill = "steelblue", alpha = 0.5) +
+  labs(title = "Density Plot of Customer Income",
+       x = "Income ($)",
+       y = "Density") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.000001)) +
+  theme_minimal()
+
+ggsave("./q1-income_density_plot.png", 
+       width = 8, height = 6, dpi = 300)
+```
+
+### 1.2: Provide a couple of sentences of description along with the plot. Imagine you are explaining this to your manager or a senior leader. (10 points)
+
+The income density plot reveals a right-skewed distribution where the majority of our customers fall within the lower-to-middle income brackets, with a concentration below $100,000 annually. This distribution pattern indicates that our primary customer base consists of middle-class households, which has significant strategic implications for our pricing models and product positioning.
+
+The plot also shows a characteristic long tail extending toward higher income levels, representing a smaller but potentially valuable segment of affluent customers. This high-income segment presents opportunities for premium service offerings and could be targeted with specialized products or services that command higher margins, while our core middle-income customer base should remain the focus for volume-driven, competitively-priced offerings.
+
+## Question 2: Housing Type and Income Analysis
+
+Create a bar chart for housing type (x axis) and income (y axis) using the customers data. Make sure to remove the “NA” type. [Hint: Remove “NA” type from the “housing.type” and “income” columns by using the subset function with an appropriate condition on the “income” and “housing type” field. Use ggplot and add “+geom_bar(stat=’identity’)” after the initial ggplot command.] Provide your commands and theplot. (10 points)
+
+```{r question-2-data-prep}
+custdata_clean <- subset(custdata, 
+                         !is.na(housing.type) & 
+                         !is.na(income) & 
+                         housing.type != "NA")
+
+housing_income <- aggregate(income ~ housing.type, 
+                            data = custdata_clean, 
+                            FUN = mean)
+```
+
+```{r question-2-plot}
+ggplot(housing_income, aes(x = reorder(housing.type, income), y = income)) +
+  geom_bar(stat = 'identity', fill = "steelblue") +
+  labs(title = "Average Income by Housing Type",
+       x = "Housing Type",
+       y = "Average Income ($)") +
+  scale_y_continuous(labels = scales::comma, 
+                     limits = c(0, max(housing_income$income) * 1.1),
+                     expand = expansion(mult = c(0, 0.05))) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("./q2-housing_income_barplot.png", 
+       width = 10, height = 6, dpi = 300)
+```
+
+## Question 3: Married High-Income Customer Analysis
+
+### 3.1: Extract a subset of customers that are married and have an income more than $50,000. (5 points)
+
+```{r question-3-1}
+married_high_income <- subset(custdata, 
+                              marital.stat == "Married" & 
+                              income > 50000)
+
+head(married_high_income)
+nrow(married_high_income)
+```
+
+
+### 3.2: What percentage of these customers have health insurance? (10 points)
+
+Among the 216 married customers with income exceeding $50,000, 208 customers have health insurance, resulting in a health insurance coverage rate of 96.30%.
+
+```{r question-3-2}
+num_with_insurance <- sum(married_high_income$health.ins == TRUE, na.rm = TRUE)
+total_customers <- nrow(married_high_income)
+percentage_with_insurance <- (num_with_insurance / total_customers) * 100
+
+cat("Number of married customers with income > $50,000:", total_customers, "\n")
+cat("Number with health insurance:", num_with_insurance, "\n")
+cat("Percentage with health insurance:", percentage_with_insurance, "%\n")
+```
+
+### 3.3: How does this percentage differ from that for the whole data set? (10 points)
+
+```{r question-3-3}
+num_with_insurance_all <- sum(custdata$health.ins == TRUE, na.rm = TRUE)
+total_customers_all <- nrow(custdata)
+percentage_with_insurance_all <- (num_with_insurance_all / total_customers_all) * 100
+
+cat("\nWhole dataset:\n")
+cat("Total customers:", total_customers_all, "\n")
+cat("Number with health insurance:", num_with_insurance_all, "\n")
+cat("Percentage with health insurance:", percentage_with_insurance_all, "%\n")
+
+cat("\nDifference:", 
+    percentage_with_insurance - percentage_with_insurance_all, 
+    "percentage points\n")
+```
+
+The health insurance coverage rate for married customers with income > $50,000 (96.30%) is significantly higher than the overall dataset coverage rate (84.10%). This represents a difference of 12.20%. This difference suggests that marital status combined with higher income levels is strongly associated with health insurance coverage, likely due to increased financial stability and access to employer-sponsored family health plans.
+
+## Question 4: Age, Income, and Vehicle Ownership Analysis
+
+### 4.1: In the customers data, do you think there is any correlation between age, income, and number of vehicles? Explain why or why not. Remove any age outliers (age > 100). Then plot a scatterplot between 2 of the 3 variables where the color of each point is the 3rd variable. (10 points)
+
+Yes, there appears to be correlations between age, income, and number of vehicles based on the scatterplot analysis. The plot shows that income generally increases with age up to middle age (around 40-60 years) before plateauing or slightly declining in older age groups, suggesting a lifecycle earnings pattern. Additionally, the color gradient indicates that customers with higher incomes (warmer colors) tend to own more vehicles, which makes economic sense as vehicle ownership requires disposable income for purchase, maintenance, and insurance costs. The relationship suggests that these three variables are interconnected, with age influencing earning capacity and income enabling greater vehicle ownership.
+
+```{r question-4-1-data-prep}
+custdata_no_outliers <- subset(custdata, age <= 100)
+
+custdata_clean_corr <- subset(custdata_no_outliers, 
+                              !is.na(age) & 
+                              !is.na(income) & 
+                              !is.na(num.vehicles))
+```
+
+```{r question-4-1-plot}
+ggplot(custdata_clean_corr, aes(x = age, y = income, color = num.vehicles)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Income vs Age (colored by Number of Vehicles)",
+       x = "Age (years)",
+       y = "Income ($)",
+       color = "Number of Vehicles") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal() +
+  scale_color_gradient(low = "blue", high = "red")
+
+ggsave("./q4-scatterplot_age_income_vehicles.png", 
+       width = 10, height = 6, dpi = 300)
+```
+
+### 4.2: Report the best correlation coefficient between "income" and "num.vehicles", and "num.vehicles" and "age". Remove "NA" type from the "housing.type" and "income" columns using the subset function, then determine the correlation coefficients. (15 points)
+
+The best / strongest correlation is between Income and Number of Vehicles with a coefficient of 0.1365. While this is still considered a weak correlation, it makes intuitive business sense that customers with higher incomes have greater financial capacity to own multiple vehicles. The negative correlation between vehicle ownership and age suggests that older customers tend to own fewer vehicles, possibly due to reduced mobility needs or lifestyle changes in retirement.
+
+```{r question-4-2}
+cor_income_vehicles <- cor(custdata_clean_corr$income, 
+                           custdata_clean_corr$num.vehicles, 
+                           use = "complete.obs")
+
+cor_vehicles_age <- cor(custdata_clean_corr$num.vehicles, 
+                        custdata_clean_corr$age, 
+                        use = "complete.obs")
+
+cat("\n=== CORRELATION COEFFICIENTS ===\n")
+cat("Correlation between Income and Number of Vehicles:", cor_income_vehicles, "\n")
+cat("Correlation between Number of Vehicles and Age:", cor_vehicles_age, "\n")
+
+if (abs(cor_income_vehicles) > abs(cor_vehicles_age)) {
+  cat("\nBest correlation: Income and Number of Vehicles (", 
+      cor_income_vehicles, ")\n", sep = "")
+} else {
+  cat("\nBest correlation: Number of Vehicles and Age (", 
+      cor_vehicles_age, ")\n", sep = "")
+}
+```
